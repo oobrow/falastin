@@ -1,6 +1,6 @@
-# Palestine Casualty Data Visualization
+# Palestine Genocide Data Visualization
 
-An interactive web visualization displaying casualty statistics from Gaza, prompting reflection on conflict, accountability, and human cost.
+An interactive web visualization displaying death statistics from Gaza, prompting reflection on conflict, **accountability**, and human cost.
 
 ## Overview
 
@@ -17,16 +17,7 @@ This project visualizes death toll data from Palestine through an animated, inte
 
 This visualization aims to:
 - Make abstract casualty numbers more tangible and human
-- Encourage viewers to engage with difficult questions about ongoing conflict
-- Prompt reflection on proportionality, civilian protection, and international law
-- Question what levels of civilian casualties are acceptable in military operations
-
-## Data Context
-
-The visualization presents official casualty counts while viewers can consider:
-- What military objectives justify these civilian casualties?
-- How do these numbers compare to casualties in similar conflicts?
-- What international standards apply to civilian protection?
+- Encourage viewers to engage with the accountability of Israel and its supporters
 
 ## Technical Implementation
 
