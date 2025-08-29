@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Genocide in Palestine</title>
+  <style>
+    body, html { margin:0; padding:0; overflow:hidden; background:#000; }
+    canvas { display:block; }
+    #label {
+      position:absolute;
+      top:16%; left:50%;
+      transform:translate(-50%,-50%);
+      color:#fff;
+      font-family: 'Arial', sans-serif;
+      font-size:3rem;
+      pointer-events:none;
+      text-align:center;
+      z-index: 10;
+    }
+    
+
+    
+    #bottom-text {
+      position: fixed;
+      bottom: 10px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      font-family: 'Arial', sans-serif;
+      font-size: 0.8rem;
+      color: #fff;
+      pointer-events: none;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="label">Deaths in Palestine</div>
+  <canvas id="canvas"></canvas>
+  <div id="bottom-text">fck isrl</div>
+  <script>
+    const periods = [
+      { label: 'last 7 days', days: 7 },
+      { label: 'last 2 weeks', days: 14 },
+      { label: 'last month', days: 30 },
+      { label: 'since October 2023', days: null }
+    ];
+    
+    const labelTexts = [
+      { name: 'Palestine', prefix: 'deaths in ', suffix: ' ' },
+      { name: 'Falasṭīn', prefix: 'wafayat fi ', suffix: ' ' },
+      { name: 'فلسطين', prefix: 'وفيات في ', suffix: ' ' }
+    ];
+    let nameIndex = 0;
+    let periodIndex = 0;
+
+    async function fetchAll() {
+      const res = await fetch('https://data.techforpalestine.org/api/v3/summary.json');
+      return await res.json();
+    }
+
+    function getGazaDeathsByPeriod(data, days) {
+      // For the "since October 2023" case, return total deaths
+      if (!days) return data.gaza.killed.total;
+      
+      // For other periods, we can't filter by exact date from the summary API
+      // so we'll estimate based on the total and time elapsed
+      
+      // Oct 7, 2023 to current date
+      const startDate = new Date('2023-10-07');
+      const currentDate = new Date();
+      const totalDays = Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24));
+      
+      // Simple linear approximation based on the ratio of days
+      // This is an estimate since we don't have daily data
+      const ratio = days / totalDays;
+      return Math.round(data.gaza.killed.total * Math.min(ratio, 1));
+    }
+
+    // Not used anymore as colors are determined by position
+    function getColorDistribution(mode, count) {
+      const arr = Array(count).fill('black'); // Default color is black
+      return arr;
+    }
+
+    (async ()=>{
+      const all = await fetchAll();
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      let W=canvas.width=window.innerWidth, H=canvas.height=window.innerHeight;
+      window.addEventListener('resize', ()=>{W=canvas.width=window.innerWidth; H=canvas.height=window.innerHeight;});
+
+      const colorModes = [
+        { red:0.5, white:0.25, green:0.25 },
+        { red:0.25, white:0.25, green:0.5 },
+        { red:0.25, white:0.5, green:0.25 }
+      ];
+      let colorIndex=0;
+      let dots=[];
+
+      // Function to draw Palestine flag on canvas (for reference only)
+      function drawPalestineFlag() {
+        const flagWidth = W;
+        const flagHeight = H;
+        
+        // Draw the three horizontal stripes
+        ctx.fillStyle = '#000000'; // Black
+        ctx.fillRect(0, 0, flagWidth, flagHeight/3);
+        
+        ctx.fillStyle = '#ffffff'; // White
+        ctx.fillRect(0, flagHeight/3, flagWidth, flagHeight/3);
+        
+        ctx.fillStyle = '#007A3D'; // Green
+        ctx.fillRect(0, 2*flagHeight/3, flagWidth, flagHeight/3);
+        
+        // Draw the red triangle
+        ctx.fillStyle = '#CE1126'; // Red
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(flagWidth/3, flagHeight/2);
+        ctx.lineTo(0, flagHeight);
+        ctx.closePath();
+        ctx.fill();
+      }
+      
+      // Get color based on position in the flag
+      function getColorFromPosition(x, y) {
+        const relativeX = x / W;
+        const relativeY = y / H;
+        
+        // Red triangle on the left
+        if (relativeX < 0.33 * (0.5 - Math.abs(relativeY - 0.5))) {
+          return '#CE1126'; // Red
+        }
+        
+        // Top third - Black (restricted area - no dots)
+        if (relativeY < 0.33) {
+          return null; // Restricted area
+        }
+        
+        // Middle third - White 
+        if (relativeY >= 0.33 && relativeY < 0.66) {
+          return '#ffffff'; // White
+        }
+        
+        // Bottom third - Green
+        return '#007A3D'; // Green
+      }
+      
+      function initDots() {
+        const period = periods[periodIndex];
+        // Get a reasonable sample size for visualization (max 5000 dots)
+        const deathCount = getGazaDeathsByPeriod(all, period.days);
+        const visualizationCount = Math.min(deathCount, 5000);
+        
+        const labelObj = labelTexts[nameIndex];
+        let periodLabel = '';
+          
+          // Set period label based on the language
+          if (nameIndex === 0) { // English
+            periodLabel = period.label;
+          } else if (nameIndex === 1) { // Romanized Arabic
+            periodLabel = period.label
+              .replace('last 7 days', 'akher 7 ayyam')
+              .replace('last 2 weeks', 'akher osbu\'ayn')
+              .replace('last month', 'al-shahr al-madi')
+              .replace('since October 2023', 'mundhu October 2023');
+          } else { // Arabic
+            periodLabel = period.label
+              .replace('last 7 days', 'آخر ٧ أيام')
+              .replace('last 2 weeks', 'آخر أسبوعين')
+              .replace('last month', 'الشهر الماضي')
+              .replace('since October 2023', 'منذ أكتوبر ٢٠٢٣');
+          }
+          
+          document.getElementById('label').innerHTML = `${labelObj.prefix}<u>${labelObj.name}</u>${labelObj.suffix}${periodLabel}:<br><strong><u>${deathCount.toLocaleString('de-DE')}</u></strong>`;
+        
+        dots = [];
+        let count = 0;
+        
+        // Keep generating dots until we reach the desired count
+        while (count < visualizationCount) {
+          const x = Math.random() * W;
+          const y = Math.random() * H;
+          
+          // Get color based on position in flag
+          const color = getColorFromPosition(x, y);
+          
+          // Only add dots in valid areas (not in the white middle stripe)
+          if (color !== null) {
+            dots.push({
+              x: x,
+              y: y,
+              vx: (Math.random()-0.5)*0.5,
+              vy: (Math.random()-0.5)*0.5,
+              size: Math.random()*5+1,
+              originalSize: Math.random()*3+1,
+              sizeDirection: Math.random() > 0.5 ? 1 : -1,
+              sizeSpeed: Math.random() * 0.05 + 0.01,
+              color: color
+            });
+            count++;
+          }
+        }
+      }
+
+      initDots();
+
+      function draw(){
+        ctx.clearRect(0,0,W,H);
+        
+        dots.forEach(d=>{
+          // Update position
+          d.x+=d.vx; d.y+=d.vy;
+          
+          // Bounce off walls
+          if(d.x<0||d.x>W) d.vx*=-1;
+          if(d.y<0||d.y>H) d.vy*=-1;
+          
+          // Get new color based on position
+          const newColor = getColorFromPosition(d.x, d.y);
+          
+          // If dot enters restricted white area, bounce it back
+          if (newColor === null) {
+            // Push back to previous position and reverse direction
+            d.x -= d.vx * 2;
+            d.y -= d.vy * 2;
+            d.vx *= -1;
+            d.vy *= -1;
+          } else {
+            // Update color based on new position
+            d.color = newColor;
+          }
+          
+          // Update size
+          d.size += d.sizeDirection * d.sizeSpeed;
+          
+          // Change direction if getting too small or too large
+          if (d.size < d.originalSize * 0.5 || d.size > d.originalSize * 2) {
+            d.sizeDirection *= -1;
+          }
+          
+          // Draw the dot
+          ctx.beginPath();
+          ctx.arc(d.x,d.y,d.size,0,2*Math.PI);
+          ctx.fillStyle=d.color;
+          ctx.fill();
+        });
+        
+        requestAnimationFrame(draw);
+      }
+
+      canvas.addEventListener('click', ()=>{
+        // reverse all velocities
+        dots.forEach(d=>{ d.vx*=-1; d.vy*=-1; });
+        // advance period
+        periodIndex = (periodIndex+1)%periods.length;
+        // advance colors
+        colorIndex = (colorIndex+1)%colorModes.length;
+        // advance Palestine name
+        nameIndex = (nameIndex+1)%labelTexts.length;
+        initDots();
+      });
+
+      draw();
+    })();
+  </script>
+</body>
+</html>
